@@ -20,19 +20,22 @@ class TeamAdapter extends TypeAdapter<Team> {
       id: fields[0] as String,
       name: fields[1] as String,
       logoPath: fields[2] as String?,
+      group: fields[3] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Team obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.logoPath);
+      ..write(obj.logoPath)
+      ..writeByte(3)
+      ..write(obj.group);
   }
 
   @override
@@ -157,13 +160,15 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       matches: (fields[5] as List).cast<Match>(),
       pointSystem: fields[6] as PointSystem,
       createdAt: fields[7] as DateTime,
+      format: fields[8] as String,
+      numberOfGroups: fields[9] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Tournament obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -179,7 +184,11 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       ..writeByte(6)
       ..write(obj.pointSystem)
       ..writeByte(7)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(8)
+      ..write(obj.format)
+      ..writeByte(9)
+      ..write(obj.numberOfGroups);
   }
 
   @override
@@ -206,17 +215,20 @@ class MatchAdapter extends TypeAdapter<Match> {
     return Match(
       matchNumber: fields[0] as int,
       results: (fields[1] as List).cast<MatchResult>(),
+      playingGroups: (fields[2] as List?)?.cast<String>(),
     );
   }
 
   @override
   void write(BinaryWriter writer, Match obj) {
     writer
-      ..writeByte(2)
+      ..writeByte(3)
       ..writeByte(0)
       ..write(obj.matchNumber)
       ..writeByte(1)
-      ..write(obj.results);
+      ..write(obj.results)
+      ..writeByte(2)
+      ..write(obj.playingGroups);
   }
 
   @override

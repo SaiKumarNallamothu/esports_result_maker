@@ -100,6 +100,16 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
       );
     }
 
+    // Determine active match and filter teams by playing groups if it is a group fixture
+    final match = tournament.matches.firstWhere(
+      (m) => m.matchNumber == _selectedMatchNumber,
+      orElse: () => Match(matchNumber: _selectedMatchNumber, results: []),
+    );
+    final playingGroups = match.playingGroups;
+    final List<Team> filteredTeams = (tournament.format == 'group_fixtures' && playingGroups != null)
+        ? tournament.teams.where((team) => playingGroups.contains(team.group)).toList()
+        : tournament.teams;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('MATCH RESULTS'),
@@ -107,7 +117,7 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
           IconButton(
             icon: const Icon(Icons.check, color: AppTheme.accentGold),
             tooltip: 'Save Results',
-            onPressed: () => _saveResults(viewModel),
+            onPressed: () => _saveResults(viewModel, filteredTeams),
           ),
         ],
       ),
@@ -143,9 +153,16 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
                     }
                   },
                   items: List.generate(tournament.numberOfMatches, (index) => index + 1).map((mNum) {
+                    final m = tournament.matches.firstWhere(
+                      (matchItem) => matchItem.matchNumber == mNum,
+                      orElse: () => Match(matchNumber: mNum, results: []),
+                    );
+                    final groupsText = (tournament.format == 'group_fixtures' && m.playingGroups != null)
+                        ? ' (${m.playingGroups!.join(' vs ')})'
+                        : '';
                     return DropdownMenuItem<int>(
                       value: mNum,
-                      child: Text('MATCH #$mNum'),
+                      child: Text('MATCH #$mNum$groupsText'),
                     );
                   }).toList(),
                 ),
@@ -159,10 +176,10 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
               key: _formKey,
               child: ListView.builder(
                 padding: const EdgeInsets.all(12),
-                itemCount: tournament.teams.length,
+                itemCount: filteredTeams.length,
                 itemBuilder: (context, index) {
-                  final team = tournament.teams[index];
-                  return _buildTeamInputRow(context, tournament, team, index + 1);
+                  final team = filteredTeams[index];
+                  return _buildTeamInputRow(context, filteredTeams.length, team, index + 1);
                 },
               ),
             ),
@@ -172,7 +189,7 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: ElevatedButton(
-              onPressed: () => _saveResults(viewModel),
+              onPressed: () => _saveResults(viewModel, filteredTeams),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
@@ -184,7 +201,7 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
     );
   }
 
-  Widget _buildTeamInputRow(BuildContext context, Tournament tournament, Team team, int displayIndex) {
+  Widget _buildTeamInputRow(BuildContext context, int totalActiveTeams, Team team, int displayIndex) {
     final theme = Theme.of(context);
 
     return Card(
@@ -223,6 +240,21 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (team.group != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.neonBlue.withOpacity(0.15),
+                      border: Border.all(color: AppTheme.neonBlue, width: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'GROUP ${team.group}',
+                      style: GoogleFonts.bebasNeue(fontSize: 10, color: AppTheme.neonBlue, letterSpacing: 0.5),
+                    ),
+                  ),
+                ]
               ],
             ),
             const SizedBox(height: 12),
@@ -251,7 +283,7 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
                             value: null,
                             child: Text('-', style: TextStyle(color: AppTheme.textSecondary)),
                           ),
-                          ...List.generate(tournament.numberOfTeams, (i) {
+                          ...List.generate(totalActiveTeams, (i) {
                             final rank = i + 1;
                             return DropdownMenuItem<int?>(
                               value: rank,
@@ -384,29 +416,41 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
     );
   }
 
-  void _saveResults(TournamentViewModel viewModel) {
+  void _saveResults(TournamentViewModel viewModel, List<Team> filteredTeams) {
     if (_formKey.currentState?.validate() ?? false) {
       final List<MatchResult> results = [];
       final tournament = viewModel.activeTournament;
       if (tournament == null) return;
 
       for (var team in tournament.teams) {
-        final placement = _selectedPlacements[team.id] ?? 0;
-        final finishesText = _finishesControllers[team.id]?.text.trim() ?? '';
-        final bonusText = _bonusControllers[team.id]?.text.trim() ?? '';
-        final penaltyText = _penaltyControllers[team.id]?.text.trim() ?? '';
+        final isPlaying = filteredTeams.any((t) => t.id == team.id);
+        if (isPlaying) {
+          final placement = _selectedPlacements[team.id] ?? 0;
+          final finishesText = _finishesControllers[team.id]?.text.trim() ?? '';
+          final bonusText = _bonusControllers[team.id]?.text.trim() ?? '';
+          final penaltyText = _penaltyControllers[team.id]?.text.trim() ?? '';
 
-        final finishes = finishesText.isEmpty ? 0 : int.parse(finishesText);
-        final bonus = bonusText.isEmpty ? 0 : int.parse(bonusText);
-        final penalty = penaltyText.isEmpty ? 0 : int.parse(penaltyText);
+          final finishes = finishesText.isEmpty ? 0 : int.parse(finishesText);
+          final bonus = bonusText.isEmpty ? 0 : int.parse(bonusText);
+          final penalty = penaltyText.isEmpty ? 0 : int.parse(penaltyText);
 
-        results.add(MatchResult(
-          teamId: team.id,
-          placement: placement,
-          finishes: finishes,
-          bonusPoints: bonus,
-          penaltyPoints: penalty,
-        ));
+          results.add(MatchResult(
+            teamId: team.id,
+            placement: placement,
+            finishes: finishes,
+            bonusPoints: bonus,
+            penaltyPoints: penalty,
+          ));
+        } else {
+          // Carry over or save empty results for non-participating teams
+          results.add(MatchResult(
+            teamId: team.id,
+            placement: 0,
+            finishes: 0,
+            bonusPoints: 0,
+            penaltyPoints: 0,
+          ));
+        }
       }
 
       viewModel.updateMatchResults(_selectedMatchNumber, results);

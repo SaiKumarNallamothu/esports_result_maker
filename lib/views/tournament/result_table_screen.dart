@@ -294,7 +294,14 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                 Text(
                   _selectedMatchNumber == null
                       ? 'OVERALL STANDINGS'
-                      : 'MATCH #$_selectedMatchNumber RESULTS',
+                      : 'MATCH #$_selectedMatchNumber RESULTS' +
+                          ((tournament.format == 'group_fixtures' &&
+                                  tournament.matches
+                                      .firstWhere((m) => m.matchNumber == _selectedMatchNumber)
+                                      .playingGroups !=
+                                  null)
+                              ? ' (${tournament.matches.firstWhere((m) => m.matchNumber == _selectedMatchNumber).playingGroups!.join(' vs ')})'
+                              : ''),
                   style: GoogleFonts.bebasNeue(
                     fontSize: 20,
                     letterSpacing: 2,
@@ -449,22 +456,41 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                           Expanded(
                             child: Row(
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    stats.team.name.toUpperCase(),
-                                    style: GoogleFonts.bebasNeue(
-                                      fontSize: 15,
-                                      letterSpacing: 0.5,
-                                      color: textColor,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isWWCD) ...[
-                                  const SizedBox(width: 4),
-                                  _buildWWCDIndicator(stats.wwcdCount),
-                                ],
+                                 Expanded(
+                                   child: Text(
+                                     stats.team.name.toUpperCase(),
+                                     style: GoogleFonts.bebasNeue(
+                                       fontSize: 15,
+                                       letterSpacing: 0.5,
+                                       color: textColor,
+                                     ),
+                                     maxLines: 1,
+                                     overflow: TextOverflow.ellipsis,
+                                   ),
+                                 ),
+                                 if (tournament.format == 'group_fixtures' && stats.team.group != null) ...[
+                                   const SizedBox(width: 4),
+                                   Container(
+                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                     decoration: BoxDecoration(
+                                       color: AppTheme.neonBlue.withOpacity(0.15),
+                                       border: Border.all(color: AppTheme.neonBlue, width: 0.5),
+                                       borderRadius: BorderRadius.circular(3),
+                                     ),
+                                     child: Text(
+                                       stats.team.group!,
+                                       style: const TextStyle(
+                                         fontSize: 8,
+                                         fontWeight: FontWeight.bold,
+                                         color: AppTheme.neonBlue,
+                                       ),
+                                     ),
+                                   ),
+                                 ],
+                                 if (isWWCD) ...[
+                                   const SizedBox(width: 4),
+                                   _buildWWCDIndicator(stats.wwcdCount),
+                                 ],
                               ],
                             ),
                           ),

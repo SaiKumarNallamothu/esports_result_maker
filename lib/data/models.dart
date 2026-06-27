@@ -11,12 +11,16 @@ class Team extends HiveObject {
   String name;
 
   @HiveField(2)
-  String? logoPath; // Picked image local path (or null for auto-generated gradient initial)
+  String? logoPath;
+
+  @HiveField(3)
+  String? group; // 'A', 'B', 'C', etc.
 
   Team({
     required this.id,
     required this.name,
     this.logoPath,
+    this.group,
   });
 }
 
@@ -29,13 +33,13 @@ class PointSystem extends HiveObject {
   String name;
 
   @HiveField(2)
-  Map<int, int> positionPoints; // Map of Position (e.g. 1st, 2nd...) to Points
+  Map<int, int> positionPoints;
 
   @HiveField(3)
-  int finishPoints; // Points per kill
+  int finishPoints;
 
   @HiveField(4)
-  List<String>? tiebreakerHierarchy; // E.g. ['wwcd', 'finishes', 'placementPoints']
+  List<String>? tiebreakerHierarchy;
 
   PointSystem({
     required this.id,
@@ -109,10 +113,10 @@ class MatchResult extends HiveObject {
   final String teamId;
 
   @HiveField(1)
-  int placement; // e.g. 1 to 24
+  int placement;
 
   @HiveField(2)
-  int finishes; // e.g. total finishes / kills
+  int finishes;
 
   @HiveField(3)
   int bonusPoints;
@@ -155,6 +159,12 @@ class Tournament extends HiveObject {
   @HiveField(7)
   DateTime createdAt;
 
+  @HiveField(8)
+  String format; // 'classic' or 'group_fixtures'
+
+  @HiveField(9)
+  int? numberOfGroups;
+
   Tournament({
     required this.id,
     required this.name,
@@ -164,19 +174,25 @@ class Tournament extends HiveObject {
     required this.matches,
     required this.pointSystem,
     required this.createdAt,
+    this.format = 'classic',
+    this.numberOfGroups,
   });
 }
 
 @HiveType(typeId: 4)
 class Match extends HiveObject {
   @HiveField(0)
-  final int matchNumber; // 1-indexed
+  final int matchNumber;
 
   @HiveField(1)
   final List<MatchResult> results;
 
+  @HiveField(2)
+  List<String>? playingGroups; // e.g. ['A', 'B']
+
   Match({
     required this.matchNumber,
     required this.results,
+    this.playingGroups,
   });
 }

@@ -52,7 +52,9 @@ class TeamManagementScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Drag & drop to reorder. Tap name to edit. Tap logo to upload.',
+                    tournament.format == 'group_fixtures'
+                        ? 'Edit team names, logos, groups (tap badge), or reorder slots.'
+                        : 'Drag & drop to reorder. Tap name to edit. Tap logo to upload.',
                     style: theme.textTheme.bodyMedium?.copyWith(fontSize: 12),
                   ),
                 ),
@@ -68,7 +70,7 @@ class TeamManagementScreen extends StatelessWidget {
               },
               itemBuilder: (context, index) {
                 final team = tournament.teams[index];
-                return _buildTeamCard(context, viewModel, team, index);
+                return _buildTeamCard(context, viewModel, tournament, team, index);
               },
             ),
           ),
@@ -124,10 +126,10 @@ class TeamManagementScreen extends StatelessWidget {
   Widget _buildTeamCard(
     BuildContext context,
     TournamentViewModel viewModel,
+    Tournament tournament,
     Team team,
     int index,
   ) {
-
     return Card(
       key: ValueKey(team.id),
       margin: const EdgeInsets.only(bottom: 12),
@@ -190,29 +192,61 @@ class TeamManagementScreen extends StatelessWidget {
 
             // Team Name Text Button (Inline editing)
             Expanded(
-              child: InkWell(
-                onTap: () => _showEditNameDialog(context, viewModel, team),
-                borderRadius: BorderRadius.circular(4),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          team.name.toUpperCase(),
-                          style: GoogleFonts.bebasNeue(
-                            fontSize: 18,
-                            letterSpacing: 1,
-                            color: AppTheme.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _showEditNameDialog(context, viewModel, team),
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                team.name.toUpperCase(),
+                                style: GoogleFonts.bebasNeue(
+                                  fontSize: 18,
+                                  letterSpacing: 1,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.edit, size: 14, color: AppTheme.textSecondary),
+                          ],
                         ),
                       ),
-                      const Icon(Icons.edit, size: 14, color: AppTheme.textSecondary),
-                    ],
+                    ),
                   ),
-                ),
+
+                  // Group Badge (If group format)
+                  if (tournament.format == 'group_fixtures') ...[
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => _showGroupSelectDialog(context, viewModel, tournament, team),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.neonBlue.withOpacity(0.15),
+                          border: Border.all(color: AppTheme.neonBlue, width: 1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'GROUP ${team.group ?? 'A'}',
+                          style: GoogleFonts.bebasNeue(
+                            fontSize: 12,
+                            letterSpacing: 0.5,
+                            color: AppTheme.neonBlue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -223,9 +257,7 @@ class TeamManagementScreen extends StatelessWidget {
 
   Widget _buildInitialsPlaceholder(String name) {
     final initials = name.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').join();
-    final displayText = initials.length > 2
-        ? initials.substring(0, 2).toUpperCase()
-        : initials.toUpperCase();
+    final displayText = initials.length > 2 ? initials.substring(0, 2).toUpperCase() : initials.toUpperCase();
     return Center(
       child: Text(
         displayText.isEmpty ? 'T' : displayText,
@@ -286,6 +318,48 @@ class TeamManagementScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _showGroupSelectDialog(
+    BuildContext context,
+    TournamentViewModel viewModel,
+    Tournament tournament,
+    Team team,
+  ) {
+    final int numGroups = tournament.numberOfGroups ?? 3;
+    final List<String> groupsList = List.generate(numGroups, (i) => String.fromCharCode(65 + i));
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppTheme.dividerColor),
+        ),
+        title: Text(
+          'ASSIGN GROUP',
+          style: GoogleFonts.bebasNeue(
+            letterSpacing: 1.5,
+            color: AppTheme.accentGold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: groupsList.map((g) {
+            final isCurrent = team.group == g;
+            return ListTile(
+              title: Text('Group $g', style: const TextStyle(fontWeight: FontWeight.bold)),
+              trailing: isCurrent ? const Icon(Icons.check, color: AppTheme.neonBlue) : null,
+              onTap: () {
+                viewModel.updateTeamGroup(team.id, g);
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        ),
       ),
     );
   }

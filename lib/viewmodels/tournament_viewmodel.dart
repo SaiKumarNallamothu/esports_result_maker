@@ -50,22 +50,57 @@ class TournamentViewModel extends ChangeNotifier {
     required int numberOfMatches,
     required int numberOfTeams,
     required PointSystem pointSystem,
+    String format = 'classic',
+    int? numberOfGroups,
   }) async {
+    final List<String> groupsList = [];
+    if (format == 'group_fixtures' && numberOfGroups != null && numberOfGroups > 0) {
+      for (int i = 0; i < numberOfGroups; i++) {
+        groupsList.add(String.fromCharCode(65 + i)); // 'A', 'B', 'C', etc.
+      }
+    }
+
     final List<Team> teams = List.generate(
       numberOfTeams,
-      (index) => Team(
-        id: _uuid.v4(),
-        name: 'Team ${index + 1}',
-        logoPath: null,
-      ),
+      (index) {
+        String? teamGroup;
+        if (groupsList.isNotEmpty) {
+          final groupIndex = index % groupsList.length;
+          teamGroup = groupsList[groupIndex];
+        }
+        return Team(
+          id: _uuid.v4(),
+          name: 'Team ${index + 1}',
+          logoPath: null,
+          group: teamGroup,
+        );
+      },
     );
+
+    // Generate round robin pairs of groups
+    final List<List<String>> uniquePairs = [];
+    if (groupsList.isNotEmpty) {
+      for (int i = 0; i < groupsList.length; i++) {
+        for (int j = i + 1; j < groupsList.length; j++) {
+          uniquePairs.add([groupsList[i], groupsList[j]]);
+        }
+      }
+    }
 
     final List<Match> matches = List.generate(
       numberOfMatches,
-      (index) => Match(
-        matchNumber: index + 1,
-        results: [],
-      ),
+      (index) {
+        List<String>? playingGroups;
+        if (format == 'group_fixtures' && uniquePairs.isNotEmpty) {
+          final pairIndex = index % uniquePairs.length;
+          playingGroups = uniquePairs[pairIndex];
+        }
+        return Match(
+          matchNumber: index + 1,
+          results: [],
+          playingGroups: playingGroups,
+        );
+      },
     );
 
     final newTournament = Tournament(
@@ -77,6 +112,8 @@ class TournamentViewModel extends ChangeNotifier {
       matches: matches,
       pointSystem: pointSystem,
       createdAt: DateTime.now(),
+      format: format,
+      numberOfGroups: numberOfGroups,
     );
 
     await _hiveService.saveTournament(newTournament);
@@ -102,7 +139,7 @@ class TournamentViewModel extends ChangeNotifier {
   Future<void> duplicateTournament(Tournament tournament) async {
     // Deep copy teams
     final copiedTeams = tournament.teams
-        .map((t) => Team(id: _uuid.v4(), name: '${t.name} (Copy)', logoPath: t.logoPath))
+        .map((t) => Team(id: _uuid.v4(), name: '${t.name} (Copy)', logoPath: t.logoPath, group: t.group))
         .toList();
 
     // Map old team IDs to new team IDs to map match results correctly
@@ -122,7 +159,11 @@ class TournamentViewModel extends ChangeNotifier {
           penaltyPoints: r.penaltyPoints,
         );
       }).toList();
-      return Match(matchNumber: m.matchNumber, results: copiedResults);
+      return Match(
+        matchNumber: m.matchNumber,
+        results: copiedResults,
+        playingGroups: m.playingGroups != null ? List<String>.from(m.playingGroups!) : null,
+      );
     }).toList();
 
     final duplicated = Tournament(
@@ -134,6 +175,8 @@ class TournamentViewModel extends ChangeNotifier {
       matches: copiedMatches,
       pointSystem: tournament.pointSystem,
       createdAt: DateTime.now(),
+      format: tournament.format,
+      numberOfGroups: tournament.numberOfGroups,
     );
 
     await _hiveService.saveTournament(duplicated);
@@ -171,6 +214,16 @@ class TournamentViewModel extends ChangeNotifier {
     _activeTournament!.teams.insert(newIndex, item);
     saveActiveTournament();
     notifyListeners();
+  }
+
+  void updateTeamGroup(String teamId, String? newGroup) {
+    if (_activeTournament == null) return;
+    final index = _activeTournament!.teams.indexWhere((t) => t.id == teamId);
+    if (index != -1) {
+      _activeTournament!.teams[index].group = newGroup;
+      saveActiveTournament();
+      notifyListeners();
+    }
   }
 
   // --- Match Result Actions ---
