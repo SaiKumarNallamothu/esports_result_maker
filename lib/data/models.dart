@@ -105,6 +105,27 @@ class PointSystem extends HiveObject {
         finishPoints: 1,
         tiebreakerHierarchy: ['wwcd', 'finishes', 'placementPoints'],
       );
+
+  static PointSystem get freeFireDefault => PointSystem(
+        id: 'freefire_default',
+        name: 'Free Fire Default System',
+        positionPoints: {
+          1: 12,
+          2: 9,
+          3: 8,
+          4: 7,
+          5: 6,
+          6: 5,
+          7: 4,
+          8: 3,
+          9: 2,
+          10: 1,
+          11: 0,
+          12: 0,
+        },
+        finishPoints: 1,
+        tiebreakerHierarchy: ['wwcd', 'finishes', 'placementPoints'],
+      );
 }
 
 @HiveType(typeId: 2)
@@ -165,6 +186,9 @@ class Tournament extends HiveObject {
   @HiveField(9)
   int? numberOfGroups;
 
+  @HiveField(10)
+  String gameCategory; // 'bgmi', 'pubg', 'freefire', 'custom'
+
   Tournament({
     required this.id,
     required this.name,
@@ -176,6 +200,7 @@ class Tournament extends HiveObject {
     required this.createdAt,
     this.format = 'classic',
     this.numberOfGroups,
+    this.gameCategory = 'bgmi',
   });
 }
 

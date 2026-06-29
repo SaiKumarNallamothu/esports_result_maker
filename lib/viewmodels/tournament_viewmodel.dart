@@ -52,6 +52,7 @@ class TournamentViewModel extends ChangeNotifier {
     required PointSystem pointSystem,
     String format = 'classic',
     int? numberOfGroups,
+    String gameCategory = 'bgmi',
   }) async {
     final List<String> groupsList = [];
     if (format == 'group_fixtures' && numberOfGroups != null && numberOfGroups > 0) {
@@ -114,6 +115,7 @@ class TournamentViewModel extends ChangeNotifier {
       createdAt: DateTime.now(),
       format: format,
       numberOfGroups: numberOfGroups,
+      gameCategory: gameCategory,
     );
 
     await _hiveService.saveTournament(newTournament);
@@ -177,6 +179,7 @@ class TournamentViewModel extends ChangeNotifier {
       createdAt: DateTime.now(),
       format: tournament.format,
       numberOfGroups: tournament.numberOfGroups,
+      gameCategory: tournament.gameCategory,
     );
 
     await _hiveService.saveTournament(duplicated);
@@ -232,9 +235,13 @@ class TournamentViewModel extends ChangeNotifier {
     if (_activeTournament == null) return;
     final matchIndex = _activeTournament!.matches.indexWhere((m) => m.matchNumber == matchNumber);
     if (matchIndex != -1) {
+      final existingMatch = _activeTournament!.matches[matchIndex];
       _activeTournament!.matches[matchIndex] = Match(
         matchNumber: matchNumber,
         results: results,
+        playingGroups: existingMatch.playingGroups != null
+            ? List<String>.from(existingMatch.playingGroups!)
+            : null,
       );
       saveActiveTournament();
       notifyListeners();

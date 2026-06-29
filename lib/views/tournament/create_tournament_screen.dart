@@ -16,6 +16,7 @@ class CreateTournamentScreen extends StatefulWidget {
 class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  String _selectedCategory = 'bgmi'; // 'bgmi', 'pubg', 'freefire', 'custom'
   String _selectedFormat = 'classic'; // 'classic' or 'group_fixtures'
   int _groupCount = 3; // Default to 3 groups (A, B, C) if group format chosen
   int _matchCount = 5;
@@ -32,7 +33,11 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
       vm.loadPresets();
       if (vm.presets.isNotEmpty) {
         setState(() {
-          _selectedPointSystem = vm.presets.first;
+          // Select default bgmi system initially
+          _selectedPointSystem = vm.presets.firstWhere(
+            (p) => p.id == 'bgmi_default',
+            orElse: () => vm.presets.first,
+          );
         });
       }
     });
@@ -55,35 +60,62 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Tournament Name Input
-              Text(
-                'TOURNAMENT DETAILS',
-                style: GoogleFonts.bebasNeue(
-                  fontSize: 20,
-                  letterSpacing: 1.5,
-                  color: AppTheme.accentGold,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 550),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Tournament Name Input
+                  Text(
+                    'TOURNAMENT DETAILS',
+                    style: GoogleFonts.bebasNeue(
+                      fontSize: 20,
+                      letterSpacing: 1.5,
+                      color: AppTheme.accentGold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _nameController,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'Tournament Name',
+                      hintText: 'e.g., BGMI Scrims Season 1',
+                      prefixIcon: Icon(Icons.emoji_events, color: AppTheme.accentGold),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a tournament name';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Game Category Selector
+                  Text(
+                    'GAME CATEGORY',
+                    style: GoogleFonts.bebasNeue(
+                      fontSize: 20,
+                      letterSpacing: 1.5,
+                      color: AppTheme.accentGold,
                 ),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _nameController,
-                style: const TextStyle(color: AppTheme.textPrimary),
-                decoration: const InputDecoration(
-                  labelText: 'Tournament Name',
-                  hintText: 'e.g., BGMI Scrims Season 1',
-                  prefixIcon: Icon(Icons.emoji_events, color: AppTheme.accentGold),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a tournament name';
-                  }
-                  return null;
-                },
+              Row(
+                children: [
+                  Expanded(child: _buildCategoryButton('bgmi', 'BGMI', const Color(0xFFF39C12))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildCategoryButton('pubg', 'PUBG', const Color(0xFFE74C3C))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildCategoryButton('freefire', 'FREE FIRE', const Color(0xFFE67E22))),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildCategoryButton('custom', 'CUSTOM', const Color(0xFF3498DB))),
+                ],
               ),
               const SizedBox(height: 24),
 
@@ -318,6 +350,50 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
           ),
         ),
       ),
+    ),
+  ),
+);
+  }
+
+  Widget _buildCategoryButton(String cat, String label, Color color) {
+    final isSelected = _selectedCategory == cat;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedCategory = cat;
+          final vm = Provider.of<TournamentViewModel>(context, listen: false);
+          if (cat == 'bgmi') {
+            final found = vm.presets.firstWhere((p) => p.id == 'bgmi_default', orElse: () => vm.presets.first);
+            _selectedPointSystem = found;
+          } else if (cat == 'pubg') {
+            final found = vm.presets.firstWhere((p) => p.id == 'pubg_default', orElse: () => vm.presets.first);
+            _selectedPointSystem = found;
+          } else if (cat == 'freefire') {
+            final found = vm.presets.firstWhere((p) => p.id == 'freefire_default', orElse: () => vm.presets.first);
+            _selectedPointSystem = found;
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.15) : AppTheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? color : AppTheme.dividerColor,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.bebasNeue(
+            fontSize: 13,
+            letterSpacing: 0.5,
+            color: isSelected ? color : AppTheme.textPrimary,
+          ),
+        ),
+      ),
     );
   }
 
@@ -371,6 +447,7 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
         pointSystem: _selectedPointSystem!,
         format: _selectedFormat,
         numberOfGroups: _selectedFormat == 'group_fixtures' ? _groupCount : null,
+        gameCategory: _selectedCategory,
       );
 
       if (mounted) {

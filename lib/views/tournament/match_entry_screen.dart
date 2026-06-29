@@ -121,9 +121,12 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           // Match Selector bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -196,13 +199,16 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
               child: Text('SAVE MATCH $_selectedMatchNumber RESULTS'),
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildTeamInputRow(BuildContext context, int totalActiveTeams, Team team, int displayIndex) {
     final theme = Theme.of(context);
+    final tournament = Provider.of<TournamentViewModel>(context, listen: false).activeTournament!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -317,7 +323,11 @@ class _MatchEntryScreenState extends State<MatchEntryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'FINISHES (KILLS)',
+                        tournament.gameCategory == 'bgmi'
+                            ? 'FINISHES'
+                            : tournament.gameCategory == 'freefire'
+                                ? 'ELIMS'
+                                : 'KILLS',
                         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),

@@ -115,14 +115,14 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Standings table wrapper
-                  Screenshot(
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: Screenshot(
                     controller: _screenshotController,
                     child: _buildLeaderboardTable(tournament, leaderboard),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -276,7 +276,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
         border: Border.all(color: border.color, width: border.width),
         borderRadius: BorderRadius.circular(4),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -339,7 +339,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
             child: Row(
               children: [
                 SizedBox(
-                  width: 35,
+                  width: 25,
                   child: Text(
                     'RNK',
                     textAlign: TextAlign.center,
@@ -354,7 +354,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                   ),
                 ),
                 SizedBox(
-                  width: 35,
+                  width: 25,
                   child: Text(
                     'M',
                     textAlign: TextAlign.center,
@@ -362,7 +362,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                   ),
                 ),
                 SizedBox(
-                  width: 45,
+                  width: 35,
                   child: Text(
                     'PLACE',
                     textAlign: TextAlign.center,
@@ -370,15 +370,19 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                   ),
                 ),
                 SizedBox(
-                  width: 45,
+                  width: 35,
                   child: Text(
-                    'FINISH',
+                    tournament.gameCategory == 'bgmi'
+                        ? 'FINISH'
+                        : tournament.gameCategory == 'freefire'
+                            ? 'ELIMS'
+                            : 'KILLS',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.bebasNeue(color: textColor, fontSize: 13, letterSpacing: 0.5),
                   ),
                 ),
                 SizedBox(
-                  width: 55,
+                  width: 45,
                   child: Text(
                     'TOTAL',
                     textAlign: TextAlign.center,
@@ -409,7 +413,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                   children: [
                     // Rank badge
                     SizedBox(
-                      width: 35,
+                      width: 25,
                       child: Center(
                         child: Text(
                           '${index + 1}',
@@ -427,14 +431,15 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    const SizedBox(width: 4),
 
                     // Team Logo & Name
                     Expanded(
                       child: Row(
                         children: [
                           Container(
-                            width: 28,
-                            height: 28,
+                            width: 24,
+                            height: 24,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: stats.team.logoPath == null
@@ -489,7 +494,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                                  ],
                                  if (isWWCD) ...[
                                    const SizedBox(width: 4),
-                                   _buildWWCDIndicator(stats.wwcdCount),
+                                   _buildWWCDIndicator(tournament, stats.wwcdCount),
                                  ],
                               ],
                             ),
@@ -500,7 +505,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
 
                     // Matches Played / count
                     SizedBox(
-                      width: 35,
+                      width: 25,
                       child: Text(
                         '${stats.matchesPlayed}',
                         textAlign: TextAlign.center,
@@ -510,7 +515,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
 
                     // Placement Points
                     SizedBox(
-                      width: 45,
+                      width: 35,
                       child: Text(
                         '${stats.placementPoints}',
                         textAlign: TextAlign.center,
@@ -520,7 +525,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
 
                     // Finishes Points
                     SizedBox(
-                      width: 45,
+                      width: 35,
                       child: Text(
                         '${stats.finishes}',
                         textAlign: TextAlign.center,
@@ -530,7 +535,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
 
                     // Total Points
                     SizedBox(
-                      width: 55,
+                      width: 45,
                       child: Text(
                         '${stats.totalPoints}',
                         textAlign: TextAlign.center,
@@ -585,25 +590,36 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
     );
   }
 
-  Widget _buildWWCDIndicator(int count) {
+  Widget _buildWWCDIndicator(Tournament tournament, int count) {
+    final String label = tournament.gameCategory == 'freefire'
+        ? 'BOOYAH'
+        : tournament.gameCategory == 'custom'
+            ? 'WIN'
+            : 'WWCD';
+    final Color badgeColor = tournament.gameCategory == 'freefire'
+        ? const Color(0xFFE67E22)
+        : const Color(0xFFF1C40F);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1C40F).withOpacity(0.15),
-        border: Border.all(color: const Color(0xFFF1C40F), width: 0.5),
+        color: badgeColor.withOpacity(0.15),
+        border: Border.all(color: badgeColor, width: 0.5),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.emoji_events, size: 8, color: Color(0xFFF1C40F)),
-          if (count > 1) ...[
-            const SizedBox(width: 2),
-            Text(
-              'x$count',
-              style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFF1C40F)),
-            ),
-          ],
+          Icon(
+            tournament.gameCategory == 'freefire' ? Icons.local_fire_department : Icons.emoji_events,
+            size: 8,
+            color: badgeColor,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            count > 1 ? '$label x$count' : label,
+            style: TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold, color: badgeColor),
+          ),
         ],
       ),
     );

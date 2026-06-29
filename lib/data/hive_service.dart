@@ -60,6 +60,7 @@ class HiveService {
       PointSystem.bgmiDefault,
       PointSystem.bgisNew,
       PointSystem.pubgDefault,
+      PointSystem.freeFireDefault,
       ...customPresets,
     ];
   }
