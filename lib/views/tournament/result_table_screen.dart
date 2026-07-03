@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+import 'team_management_screen.dart';
 import '../../viewmodels/tournament_viewmodel.dart';
 import '../../theme/theme.dart';
 import '../../data/models.dart';
@@ -134,26 +136,45 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
               color: AppTheme.surface,
               border: Border(top: BorderSide(color: AppTheme.dividerColor)),
             ),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isSharing ? null : () => _exportAndShare(tournament.name),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isSharing ? null : () => _exportAndShare(tournament.name),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: AppTheme.accentGold,
+                          foregroundColor: AppTheme.background,
+                        ),
+                        icon: _isSharing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.background),
+                              )
+                            : const Icon(Icons.share, size: 20),
+                        label: Text(_isSharing ? 'GENERATING IMAGE...' : 'SHARE RESULT TABLE'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (tournament.format == 'group_fixtures' && _selectedMatchNumber == null) ...[
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: () => _generateNextRound(context, viewModel, tournament, leaderboard),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: AppTheme.accentGold,
+                      backgroundColor: AppTheme.neonBlue,
                       foregroundColor: AppTheme.background,
                     ),
-                    icon: _isSharing
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.background),
-                          )
-                        : const Icon(Icons.share, size: 20),
-                    label: Text(_isSharing ? 'GENERATING IMAGE...' : 'SHARE RESULT TABLE'),
+                    icon: const Icon(Icons.next_plan_outlined, size: 20),
+                    label: const Text('GENERATE NEXT ROUND TOURNAMENT'),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -399,12 +420,13 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
             ),
           ),
 
-          // Team Rows
+           // Team Rows
           Column(
             children: List.generate(leaderboard.length, (index) {
               final stats = leaderboard[index];
               final isWWCD = stats.wwcdCount > 0;
               final rowColor = _getRowColor(index);
+              final isQualified = _isTeamQualified(tournament, leaderboard, stats.team.id, stats.team.group);
 
               return Container(
                 color: rowColor,
@@ -488,6 +510,25 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
                                          fontSize: 8,
                                          fontWeight: FontWeight.bold,
                                          color: AppTheme.neonBlue,
+                                       ),
+                                     ),
+                                   ),
+                                 ],
+                                 if (isQualified) ...[
+                                   const SizedBox(width: 4),
+                                   Container(
+                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                     decoration: BoxDecoration(
+                                       color: Colors.green.withOpacity(0.15),
+                                       border: Border.all(color: Colors.green, width: 0.5),
+                                       borderRadius: BorderRadius.circular(3),
+                                     ),
+                                     child: const Text(
+                                       'Q',
+                                       style: TextStyle(
+                                         fontSize: 8,
+                                         fontWeight: FontWeight.bold,
+                                         color: Colors.green,
                                        ),
                                      ),
                                    ),
@@ -669,5 +710,216 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
         });
       }
     }
+  }
+
+  bool _isTeamQualified(Tournament tournament, List<TeamStats> leaderboard, String teamId, String? groupName) {
+    if (tournament.format != 'group_fixtures' || groupName == null || tournament.qualifyCount == null) {
+      return false;
+    }
+    final groupTeams = leaderboard.where((stats) => stats.team.group == groupName).toList();
+    final index = groupTeams.indexWhere((stats) => stats.team.id == teamId);
+    if (index != -1 && index < tournament.qualifyCount!) {
+      return true;
+    }
+    return false;
+  }
+
+  void _generateNextRound(
+    BuildContext context,
+    TournamentViewModel viewModel,
+    Tournament tournament,
+    List<TeamStats> leaderboard,
+  ) {
+    final List<Team> qualifiedTeams = [];
+    for (var stats in leaderboard) {
+      if (_isTeamQualified(tournament, leaderboard, stats.team.id, stats.team.group)) {
+        qualifiedTeams.add(Team(
+          id: stats.team.id,
+          name: stats.team.name,
+          logoPath: stats.team.logoPath,
+        ));
+      }
+    }
+
+    if (qualifiedTeams.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No teams qualified. Make sure groups have teams assigned and qualification count is set.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final controller = TextEditingController(text: '${tournament.name} - Next Round');
+    String selectedFormat = 'classic';
+    int matchCount = 5;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: AppTheme.surfaceCard,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppTheme.dividerColor),
+            ),
+            title: Text(
+              'GENERATE NEXT ROUND',
+              style: GoogleFonts.bebasNeue(letterSpacing: 1.5, color: AppTheme.accentGold),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Qualified teams: ${qualifiedTeams.length}',
+                    style: const TextStyle(color: AppTheme.neonBlue, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: controller,
+                    style: const TextStyle(color: AppTheme.textPrimary),
+                    decoration: const InputDecoration(
+                      labelText: 'Tournament Name',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'FORMAT',
+                    style: GoogleFonts.bebasNeue(fontSize: 14, color: AppTheme.textPrimary),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedFormat == 'classic' ? AppTheme.accentGold : AppTheme.surface,
+                            foregroundColor: selectedFormat == 'classic' ? AppTheme.background : AppTheme.textPrimary,
+                          ),
+                          onPressed: () => setDialogState(() => selectedFormat = 'classic'),
+                          child: const Text('CLASSIC'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedFormat == 'group_fixtures' ? AppTheme.accentGold : AppTheme.surface,
+                            foregroundColor: selectedFormat == 'group_fixtures' ? AppTheme.background : AppTheme.textPrimary,
+                          ),
+                          onPressed: () => setDialogState(() => selectedFormat = 'group_fixtures'),
+                          child: const Text('GROUP STAGE'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total Matches: $matchCount',
+                        style: const TextStyle(color: AppTheme.textPrimary),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle_outline, color: AppTheme.neonBlue),
+                            onPressed: matchCount > 1 ? () => setDialogState(() => matchCount--) : null,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle_outline, color: AppTheme.neonBlue),
+                            onPressed: matchCount < 50 ? () => setDialogState(() => matchCount++) : null,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('CANCEL', style: TextStyle(color: AppTheme.textSecondary)),
+                onPressed: () => Navigator.pop(context),
+              ),
+              ElevatedButton(
+                child: const Text('GENERATE'),
+                onPressed: () async {
+                  final name = controller.text.trim();
+                  if (name.isEmpty) return;
+
+                  final uuid = const Uuid();
+                  final List<Team> newTeams = qualifiedTeams.map((t) => Team(
+                    id: uuid.v4(),
+                    name: t.name,
+                    logoPath: t.logoPath,
+                  )).toList();
+
+                  final List<String> groupsList = selectedFormat == 'group_fixtures' ? ['Group Alpha', 'Group Beta'] : [];
+                  if (selectedFormat == 'group_fixtures') {
+                    for (int i = 0; i < newTeams.length; i++) {
+                      newTeams[i].group = groupsList[i % groupsList.length];
+                    }
+                  }
+
+                  final List<List<String>> uniquePairs = [];
+                  if (groupsList.isNotEmpty) {
+                    for (int i = 0; i < groupsList.length; i++) {
+                      for (int j = i + 1; j < groupsList.length; j++) {
+                        uniquePairs.add([groupsList[i], groupsList[j]]);
+                      }
+                    }
+                  }
+
+                  final List<Match> matches = List.generate(
+                    matchCount,
+                    (index) {
+                      List<String>? playingGroups;
+                      if (selectedFormat == 'group_fixtures' && uniquePairs.isNotEmpty) {
+                        playingGroups = uniquePairs[index % uniquePairs.length];
+                      }
+                      return Match(
+                        matchNumber: index + 1,
+                        results: [],
+                        playingGroups: playingGroups,
+                      );
+                    },
+                  );
+
+                  await viewModel.createTournament(
+                    name: name,
+                    numberOfMatches: matchCount,
+                    numberOfTeams: newTeams.length,
+                    pointSystem: tournament.pointSystem,
+                    format: selectedFormat,
+                    numberOfGroups: selectedFormat == 'group_fixtures' ? groupsList.length : null,
+                    gameCategory: tournament.gameCategory,
+                    groupNames: selectedFormat == 'group_fixtures' ? groupsList : null,
+                  );
+
+                  viewModel.activeTournament!.teams = newTeams;
+                  viewModel.activeTournament!.matches = matches;
+                  await viewModel.saveActiveTournament();
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TeamManagementScreen()),
+                      ModalRoute.withName('/'),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        }
+      ),
+    );
   }
 }

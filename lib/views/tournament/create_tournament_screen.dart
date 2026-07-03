@@ -16,12 +16,20 @@ class CreateTournamentScreen extends StatefulWidget {
 class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _totalTeamsController = TextEditingController(text: '16');
   String _selectedCategory = 'bgmi'; // 'bgmi', 'pubg', 'freefire', 'custom'
   String _selectedFormat = 'classic'; // 'classic' or 'group_fixtures'
   int _groupCount = 3; // Default to 3 groups (A, B, C) if group format chosen
   int _matchCount = 5;
   int _teamCount = 16;
   PointSystem? _selectedPointSystem;
+
+  // Group Fixture Options
+  int _teamsPerMatch = 16;
+  int _teamsPerGroup = 16;
+  String _qualifyRule = 'Top 8'; // Top 4, Top 6, Top 8, Top 10, Custom
+  int _customQualifyCount = 8;
+  String _distributionType = 'auto'; // 'auto' or 'manual'
 
   final List<int> _teamCountOptions = [8, 12, 16, 20, 24];
 
@@ -46,6 +54,7 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _totalTeamsController.dispose();
     super.dispose();
   }
 
@@ -142,10 +151,10 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Group Count Selector (Only shown if Group Fixtures is chosen)
+              // Group Fixtures Configuration (Only shown if Group Fixtures is chosen)
               if (_selectedFormat == 'group_fixtures') ...[
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppTheme.surfaceCard,
                     borderRadius: BorderRadius.circular(8),
@@ -155,7 +164,7 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'NUMBER OF GROUPS',
+                        'TEAMS PER MATCH',
                         style: GoogleFonts.bebasNeue(
                           fontSize: 15,
                           letterSpacing: 1,
@@ -165,14 +174,13 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [2, 3, 4].map((count) {
-                          final isSelected = _groupCount == count;
-                          final groupNames = List.generate(count, (i) => String.fromCharCode(65 + i)).join(', ');
+                        children: [12, 16, 20].map((tpm) {
+                          final isSelected = _teamsPerMatch == tpm;
                           return Expanded(
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 4.0),
                               child: InkWell(
-                                onTap: () => setState(() => _groupCount = count),
+                                onTap: () => setState(() => _teamsPerMatch = tpm),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(vertical: 10),
                                   alignment: Alignment.center,
@@ -183,23 +191,12 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
                                       color: isSelected ? AppTheme.neonBlue : AppTheme.dividerColor,
                                     ),
                                   ),
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        '$count Groups',
-                                        style: GoogleFonts.bebasNeue(
-                                          fontSize: 16,
-                                          color: isSelected ? AppTheme.background : AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '($groupNames)',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: isSelected ? AppTheme.background.withOpacity(0.8) : AppTheme.textSecondary,
-                                        ),
-                                      ),
-                                    ],
+                                  child: Text(
+                                    '$tpm Teams',
+                                    style: GoogleFonts.bebasNeue(
+                                      fontSize: 14,
+                                      color: isSelected ? AppTheme.background : AppTheme.textPrimary,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -207,6 +204,132 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Qualification Rules
+                      Text(
+                        'QUALIFICATION RULES (QUALIFY PER GROUP)',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 15,
+                          letterSpacing: 1,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _qualifyRule,
+                        dropdownColor: AppTheme.surfaceCard,
+                        style: GoogleFonts.poppins(color: AppTheme.textPrimary, fontSize: 14),
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ['Top 4', 'Top 6', 'Top 8', 'Top 10', 'Custom'].map((rule) {
+                          return DropdownMenuItem<String>(
+                            value: rule,
+                            child: Text(rule),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _qualifyRule = val;
+                              if (val != 'Custom') {
+                                _customQualifyCount = int.parse(val.split(' ')[1]);
+                              }
+                            });
+                          }
+                        },
+                      ),
+                      if (_qualifyRule == 'Custom') ...[
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          initialValue: _customQualifyCount.toString(),
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Custom Qualify Count',
+                            hintText: 'e.g. 5',
+                          ),
+                          style: const TextStyle(color: AppTheme.textPrimary),
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val);
+                            if (parsed != null && parsed > 0) {
+                              _customQualifyCount = parsed;
+                            }
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+
+                      // Distribution Type
+                      Text(
+                        'TEAM DISTRIBUTION TYPE',
+                        style: GoogleFonts.bebasNeue(
+                          fontSize: 15,
+                          letterSpacing: 1,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _distributionType == 'auto' ? AppTheme.accentGold : AppTheme.surface,
+                                foregroundColor: _distributionType == 'auto' ? AppTheme.background : AppTheme.textPrimary,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              onPressed: () => setState(() => _distributionType = 'auto'),
+                              child: const Text('AUTO'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _distributionType == 'manual' ? AppTheme.accentGold : AppTheme.surface,
+                                foregroundColor: _distributionType == 'manual' ? AppTheme.background : AppTheme.textPrimary,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              onPressed: () => setState(() => _distributionType = 'manual'),
+                              child: const Text('MANUAL'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_distributionType == 'auto') ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'TEAMS PER GROUP',
+                          style: GoogleFonts.bebasNeue(
+                            fontSize: 13,
+                            letterSpacing: 1,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<int>(
+                          value: _teamsPerGroup,
+                          dropdownColor: AppTheme.surfaceCard,
+                          style: GoogleFonts.poppins(color: AppTheme.textPrimary, fontSize: 14),
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [8, 12, 16, 20, 24].map((count) {
+                            return DropdownMenuItem<int>(
+                              value: count,
+                              child: Text('$count Teams'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _teamsPerGroup = val);
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -265,38 +388,69 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: _teamCountOptions.map((count) {
-                  final isSelected = _teamCount == count;
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: InkWell(
-                        onTap: () => setState(() => _teamCount = count),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.accentGold : AppTheme.surface,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isSelected ? AppTheme.accentGold : AppTheme.dividerColor,
+              if (_selectedFormat == 'group_fixtures') ...[
+                TextFormField(
+                  controller: _totalTeamsController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Total Teams',
+                    hintText: 'e.g., 16, 32, 64, 128, 256, 512, 1024',
+                    prefixIcon: Icon(Icons.people, color: AppTheme.neonBlue),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter total number of teams';
+                    }
+                    final count = int.tryParse(value);
+                    if (count == null || count <= 0) {
+                      return 'Please enter a valid positive number';
+                    }
+                    return null;
+                  },
+                  onChanged: (val) {
+                    final parsed = int.tryParse(val);
+                    if (parsed != null) {
+                      setState(() {
+                        _teamCount = parsed;
+                      });
+                    }
+                  },
+                ),
+              ] else ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: _teamCountOptions.map((count) {
+                    final isSelected = _teamCount == count;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: InkWell(
+                          onTap: () => setState(() => _teamCount = count),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppTheme.accentGold : AppTheme.surface,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected ? AppTheme.accentGold : AppTheme.dividerColor,
+                              ),
                             ),
-                          ),
-                          child: Text(
-                            '$count',
-                            style: GoogleFonts.bebasNeue(
-                              fontSize: 18,
-                              color: isSelected ? AppTheme.background : AppTheme.textPrimary,
+                            child: Text(
+                              '$count',
+                              style: GoogleFonts.bebasNeue(
+                                fontSize: 18,
+                                color: isSelected ? AppTheme.background : AppTheme.textPrimary,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
+                    );
+                  }).toList(),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // Point System Preset Selector
@@ -440,14 +594,34 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
       }
       if (_selectedPointSystem == null) return;
 
+      List<String>? groupNames;
+      if (_selectedFormat == 'group_fixtures') {
+        if (_distributionType == 'auto') {
+          final int numGroups = (_teamCount / _teamsPerGroup).ceil();
+          final greekNames = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'];
+          groupNames = List.generate(numGroups, (i) {
+            if (i < greekNames.length) {
+              return 'Group ${greekNames[i]}';
+            } else {
+              return 'Group ${i + 1}';
+            }
+          });
+        } else {
+          groupNames = ['Group Alpha', 'Group Beta'];
+        }
+      }
+
       await viewModel.createTournament(
         name: _nameController.text.trim(),
         numberOfMatches: _matchCount,
         numberOfTeams: _teamCount,
         pointSystem: _selectedPointSystem!,
         format: _selectedFormat,
-        numberOfGroups: _selectedFormat == 'group_fixtures' ? _groupCount : null,
+        numberOfGroups: _selectedFormat == 'group_fixtures' ? groupNames?.length : null,
         gameCategory: _selectedCategory,
+        groupNames: groupNames,
+        qualifyCount: _selectedFormat == 'group_fixtures' ? _customQualifyCount : null,
+        teamsPerMatch: _selectedFormat == 'group_fixtures' ? _teamsPerMatch : null,
       );
 
       if (mounted) {

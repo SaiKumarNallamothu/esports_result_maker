@@ -53,11 +53,18 @@ class TournamentViewModel extends ChangeNotifier {
     String format = 'classic',
     int? numberOfGroups,
     String gameCategory = 'bgmi',
+    List<String>? groupNames,
+    int? qualifyCount,
+    int? teamsPerMatch,
   }) async {
     final List<String> groupsList = [];
-    if (format == 'group_fixtures' && numberOfGroups != null && numberOfGroups > 0) {
-      for (int i = 0; i < numberOfGroups; i++) {
-        groupsList.add(String.fromCharCode(65 + i)); // 'A', 'B', 'C', etc.
+    if (format == 'group_fixtures') {
+      if (groupNames != null && groupNames.isNotEmpty) {
+        groupsList.addAll(groupNames);
+      } else if (numberOfGroups != null && numberOfGroups > 0) {
+        for (int i = 0; i < numberOfGroups; i++) {
+          groupsList.add(String.fromCharCode(65 + i)); // 'A', 'B', 'C', etc.
+        }
       }
     }
 
@@ -114,8 +121,11 @@ class TournamentViewModel extends ChangeNotifier {
       pointSystem: pointSystem,
       createdAt: DateTime.now(),
       format: format,
-      numberOfGroups: numberOfGroups,
+      numberOfGroups: groupsList.length,
       gameCategory: gameCategory,
+      groupNames: groupsList,
+      qualifyCount: qualifyCount,
+      teamsPerMatch: teamsPerMatch,
     );
 
     await _hiveService.saveTournament(newTournament);
@@ -180,10 +190,118 @@ class TournamentViewModel extends ChangeNotifier {
       format: tournament.format,
       numberOfGroups: tournament.numberOfGroups,
       gameCategory: tournament.gameCategory,
+      groupNames: tournament.groupNames != null ? List<String>.from(tournament.groupNames!) : null,
+      qualifyCount: tournament.qualifyCount,
+      teamsPerMatch: tournament.teamsPerMatch,
     );
 
     await _hiveService.saveTournament(duplicated);
     loadTournaments();
+  }
+
+  // --- Group Management Actions ---
+
+  void addGroup(String groupName) {
+    if (_activeTournament == null) return;
+    _activeTournament!.groupNames ??= [];
+    if (!_activeTournament!.groupNames!.contains(groupName)) {
+      _activeTournament!.groupNames!.add(groupName);
+      _activeTournament!.numberOfGroups = _activeTournament!.groupNames!.length;
+      _regenerateMatchesForGroups();
+      saveActiveTournament();
+      notifyListeners();
+    }
+  }
+
+  void renameGroup(String oldName, String newName) {
+    if (_activeTournament == null) return;
+    if (_activeTournament!.groupNames != null) {
+      final index = _activeTournament!.groupNames!.indexOf(oldName);
+      if (index != -1) {
+        _activeTournament!.groupNames![index] = newName;
+      }
+    }
+    for (var team in _activeTournament!.teams) {
+      if (team.group == oldName) {
+        team.group = newName;
+      }
+    }
+    for (var match in _activeTournament!.matches) {
+      if (match.playingGroups != null) {
+        for (int i = 0; i < match.playingGroups!.length; i++) {
+          if (match.playingGroups![i] == oldName) {
+            match.playingGroups![i] = newName;
+          }
+        }
+      }
+    }
+    saveActiveTournament();
+    notifyListeners();
+  }
+
+  void deleteGroup(String groupName) {
+    if (_activeTournament == null) return;
+    if (_activeTournament!.groupNames != null) {
+      _activeTournament!.groupNames!.remove(groupName);
+      _activeTournament!.numberOfGroups = _activeTournament!.groupNames!.length;
+    }
+    for (var team in _activeTournament!.teams) {
+      if (team.group == groupName) {
+        team.group = null;
+      }
+    }
+    _regenerateMatchesForGroups();
+    saveActiveTournament();
+    notifyListeners();
+  }
+
+  void reorderGroups(int oldIndex, int newIndex) {
+    if (_activeTournament == null || _activeTournament!.groupNames == null) return;
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final name = _activeTournament!.groupNames!.removeAt(oldIndex);
+    _activeTournament!.groupNames!.insert(newIndex, name);
+    _regenerateMatchesForGroups();
+    saveActiveTournament();
+    notifyListeners();
+  }
+
+  void distributeTeamsAutomatically(int teamsPerGroup) {
+    if (_activeTournament == null || _activeTournament!.groupNames == null || _activeTournament!.groupNames!.isEmpty) return;
+    final groups = _activeTournament!.groupNames!;
+    for (int i = 0; i < _activeTournament!.teams.length; i++) {
+      final groupIndex = (i ~/ teamsPerGroup) % groups.length;
+      _activeTournament!.teams[i].group = groups[groupIndex];
+    }
+    saveActiveTournament();
+    notifyListeners();
+  }
+
+  void _regenerateMatchesForGroups() {
+    if (_activeTournament == null) return;
+    final groupsList = _activeTournament!.groupNames ?? [];
+    final List<List<String>> uniquePairs = [];
+    if (groupsList.isNotEmpty) {
+      for (int i = 0; i < groupsList.length; i++) {
+        for (int j = i + 1; j < groupsList.length; j++) {
+          uniquePairs.add([groupsList[i], groupsList[j]]);
+        }
+      }
+    }
+    for (int i = 0; i < _activeTournament!.matches.length; i++) {
+      final match = _activeTournament!.matches[i];
+      List<String>? playingGroups;
+      if (uniquePairs.isNotEmpty) {
+        final pairIndex = i % uniquePairs.length;
+        playingGroups = uniquePairs[pairIndex];
+      }
+      _activeTournament!.matches[i] = Match(
+        matchNumber: match.matchNumber,
+        results: match.results,
+        playingGroups: playingGroups,
+      );
+    }
   }
 
   // --- Team Management Actions ---

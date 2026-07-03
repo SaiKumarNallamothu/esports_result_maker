@@ -163,13 +163,16 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       format: fields[8] as String,
       numberOfGroups: fields[9] as int?,
       gameCategory: fields[10] as String,
+      groupNames: (fields[11] as List?)?.cast<String>(),
+      qualifyCount: fields[12] as int?,
+      teamsPerMatch: fields[13] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Tournament obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -191,7 +194,13 @@ class TournamentAdapter extends TypeAdapter<Tournament> {
       ..writeByte(9)
       ..write(obj.numberOfGroups)
       ..writeByte(10)
-      ..write(obj.gameCategory);
+      ..write(obj.gameCategory)
+      ..writeByte(11)
+      ..write(obj.groupNames)
+      ..writeByte(12)
+      ..write(obj.qualifyCount)
+      ..writeByte(13)
+      ..write(obj.teamsPerMatch);
   }
 
   @override

@@ -189,6 +189,15 @@ class Tournament extends HiveObject {
   @HiveField(10)
   String gameCategory; // 'bgmi', 'pubg', 'freefire', 'custom'
 
+  @HiveField(11)
+  List<String>? groupNames;
+
+  @HiveField(12)
+  int? qualifyCount;
+
+  @HiveField(13)
+  int? teamsPerMatch;
+
   Tournament({
     required this.id,
     required this.name,
@@ -201,6 +210,9 @@ class Tournament extends HiveObject {
     this.format = 'classic',
     this.numberOfGroups,
     this.gameCategory = 'bgmi',
+    this.groupNames,
+    this.qualifyCount,
+    this.teamsPerMatch,
   });
 }
 

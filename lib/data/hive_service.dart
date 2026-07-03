@@ -25,9 +25,20 @@ class HiveService {
       Hive.registerAdapter(MatchAdapter());
     }
 
-    // Open boxes
-    await Hive.openBox<Tournament>(_tournamentsBoxName);
-    await Hive.openBox<PointSystem>(_presetsBoxName);
+    // Open boxes with schema corruption / mismatch fallback
+    try {
+      await Hive.openBox<Tournament>(_tournamentsBoxName);
+    } catch (e) {
+      await Hive.deleteBoxFromDisk(_tournamentsBoxName);
+      await Hive.openBox<Tournament>(_tournamentsBoxName);
+    }
+
+    try {
+      await Hive.openBox<PointSystem>(_presetsBoxName);
+    } catch (e) {
+      await Hive.deleteBoxFromDisk(_presetsBoxName);
+      await Hive.openBox<PointSystem>(_presetsBoxName);
+    }
   }
 
   // --- Tournament CRUD ---
