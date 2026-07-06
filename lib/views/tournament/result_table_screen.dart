@@ -10,6 +10,7 @@ import 'team_management_screen.dart';
 import '../../viewmodels/tournament_viewmodel.dart';
 import '../../theme/theme.dart';
 import '../../data/models.dart';
+import '../../data/ad_service.dart';
 
 enum ActiveTemplate { classicGold, bgmiTheme, neonDark, minimalLight }
 
@@ -180,6 +181,7 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: AdService.getBannerAdWidget(),
     );
   }
 
@@ -673,43 +675,45 @@ class _ResultTableScreenState extends State<ResultTableScreen> {
       _isSharing = true;
     });
 
-    try {
-      final imageBytes = await _screenshotController.capture(
-        delay: const Duration(milliseconds: 100),
-      );
-
-      if (imageBytes != null) {
-        final directory = await getTemporaryDirectory();
-        final formattedName = tournamentName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
-        final scopeStr = _selectedMatchNumber == null ? 'overall' : 'match_$_selectedMatchNumber';
-        final path = '${directory.path}/leaderboard_${formattedName}_${scopeStr}_${DateTime.now().millisecondsSinceEpoch}.png';
-        final file = File(path);
-        await file.writeAsBytes(imageBytes);
-
-        // Share the image using share_plus package
-        await Share.shareXFiles(
-          [XFile(path)],
-          text: _selectedMatchNumber == null
-              ? 'Overall standings for $tournamentName #BGMI #Esports'
-              : 'Match #$_selectedMatchNumber results for $tournamentName #BGMI #Esports',
+    AdService.showInterstitialAd(() async {
+      try {
+        final imageBytes = await _screenshotController.capture(
+          delay: const Duration(milliseconds: 100),
         );
+
+        if (imageBytes != null) {
+          final directory = await getTemporaryDirectory();
+          final formattedName = tournamentName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
+          final scopeStr = _selectedMatchNumber == null ? 'overall' : 'match_$_selectedMatchNumber';
+          final path = '${directory.path}/leaderboard_${formattedName}_${scopeStr}_${DateTime.now().millisecondsSinceEpoch}.png';
+          final file = File(path);
+          await file.writeAsBytes(imageBytes);
+
+          // Share the image using share_plus package
+          await Share.shareXFiles(
+            [XFile(path)],
+            text: _selectedMatchNumber == null
+                ? 'Overall standings for $tournamentName #BGMI #Esports'
+                : 'Match #$_selectedMatchNumber results for $tournamentName #BGMI #Esports',
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to generate table image: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSharing = false;
+          });
+        }
       }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate table image: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSharing = false;
-        });
-      }
-    }
+    });
   }
 
   bool _isTeamQualified(Tournament tournament, List<TeamStats> leaderboard, String teamId, String? groupName) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'data/hive_service.dart';
+import 'data/ad_service.dart';
 import 'viewmodels/tournament_viewmodel.dart';
 import 'views/home_screen.dart';
 import 'theme/theme.dart';
@@ -16,6 +17,7 @@ void main() async {
   ]);
 
   await HiveService.init();
+  await AdService.init();
 
   runApp(
     MultiProvider(

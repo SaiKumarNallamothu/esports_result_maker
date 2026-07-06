@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../viewmodels/tournament_viewmodel.dart';
 import '../../theme/theme.dart';
 import '../../data/models.dart';
+import '../../data/ad_service.dart';
 import 'team_management_screen.dart';
 
 class CreateTournamentScreen extends StatefulWidget {
@@ -625,10 +626,14 @@ class _CreateTournamentScreenState extends State<CreateTournamentScreen> {
       );
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const TeamManagementScreen()),
-        );
+        AdService.showInterstitialAd(() {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const TeamManagementScreen()),
+            );
+          }
+        });
       }
     }
   }

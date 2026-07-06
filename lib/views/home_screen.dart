@@ -7,6 +7,7 @@ import 'package:esports_result_maker/views/tournament/create_tournament_screen.d
 import 'package:esports_result_maker/views/tournament/team_management_screen.dart';
 import 'package:esports_result_maker/views/presets_dialog.dart';
 import 'package:esports_result_maker/data/models.dart';
+import 'package:esports_result_maker/data/ad_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<TournamentViewModel>(context, listen: false).loadTournaments();
+      AdService.showAppOpenAdIfAvailable();
     });
   }
 
@@ -95,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: AppTheme.background,
         child: const Icon(Icons.add, size: 28),
       ),
+      bottomNavigationBar: AdService.getBannerAdWidget(),
     );
   }
 
