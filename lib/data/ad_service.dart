@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdService {
-  static const String bannerAdUnitId = 'ca-app-pub-9215767386390942/8566008462';
-  static const String interstitialAdUnitId = 'ca-app-pub-9215767386390942/8917362252';
-  static const String rewardedInterstitialAdUnitId = 'ca-app-pub-9215767386390942/2083983292';
-  static const String rewardedAdUnitId = 'ca-app-pub-9215767386390942/9271374028';
-  static const String nativeAdUnitId = 'ca-app-pub-9215767386390942/4232011785';
-  static const String appOpenAdUnitId = 'ca-app-pub-9215767386390942/2995637499';
+  static const String bannerAdUnitId = 'ca-app-pub-9215767386390942/8262716510';
+  static const String interstitialAdUnitId = 'ca-app-pub-9215767386390942/3936458693';
+  static const String rewardedAdUnitId = 'ca-app-pub-9215767386390942/6179478651';
+  static const String rewardedInterstitialAdUnitId = 'ca-app-pub-9215767386390942/8052511689';
+  static const String nativeAdUnitId = 'ca-app-pub-9215767386390942/7795812655';
+  static const String appOpenAdUnitId = 'ca-app-pub-9215767386390942/8614070306';
 
   static InterstitialAd? _interstitialAd;
   static bool _isInterstitialAdLoading = false;
